@@ -22,7 +22,7 @@
   const DROPS = ["M0.1,-6C1.4,-1.8 4.6,2.8 4.6,5.6A4.6,4.2 0 0 1 -4.6,5.5C-4.6,3.2 -1.9,-2.4 0.6,-6Z", "M0.4,-6C1.6,-1.8 5.0,1.8 5.0,6.1A5.0,4.6 0 0 1 -5.0,6.4C-5.0,2.5 -1.3,-1.7 -0.5,-6Z", "M0.1,-6C1.4,-2.8 5.4,3.2 5.4,6.0A5.4,5.0 0 0 1 -5.4,6.2C-5.4,3.3 -1.3,-1.3 -0.1,-6Z", "M-0.1,-6C2.1,-1.4 5.5,1.7 5.5,5.6A5.5,5.0 0 0 1 -5.5,5.7C-5.5,3.4 -1.7,-1.8 -0.2,-6Z", "M-0.1,-6C1.4,-1.9 5.0,2.7 5.0,6.4A5.0,4.6 0 0 1 -5.0,6.2C-5.0,3.4 -1.2,-1.2 0.2,-6Z", "M0.4,-6C2.2,-1.4 4.5,2.6 4.5,6.2A4.5,4.1 0 0 1 -4.5,5.7C-4.5,3.2 -1.5,-2.3 -0.5,-6Z"];
   const DEBUG = () => pref("mod.oozamp.debug", false);
   const log = (...a) => DEBUG() && console.log("[OozAmp Gel]", ...a);
-  console.info("[OozAmp Gel] script 1.0.1 loaded");
+  console.info("[OozAmp Gel] script 1.0.2 loaded");
 
   // ---------------------------------------------------------------- settings
   function pref(name, fallback) {
@@ -268,7 +268,8 @@
 
     const tabBox = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
     const side = sidebarBox();
-    d.away = !!side && !!tabBox && (d.p.x > side.right - 4 || d.p.x < side.left + 4);
+    // only stretch once the pointer is clearly out over the page, not just near the edge
+    d.away = !!side && !!tabBox && (d.p.x > side.right + 10 || d.p.x < side.left - 10);
     const gx = d.c.x - d.offset.x, gy = d.c.y - d.offset.y;   // ghost centre
 
     if (!d.away || !tabBox) {
@@ -277,7 +278,7 @@
       d.paths.set("", "");
       d.skull.style.opacity = "0";
       if (tabBox) {
-        d.ghost.style.opacity = "0.92";
+        d.ghost.style.opacity = "1";
         d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
       } else {
         d.ghost.style.opacity = "0";
