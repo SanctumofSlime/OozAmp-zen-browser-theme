@@ -19,10 +19,10 @@ Two looks that follow Zen's light/dark setting: **Neon Vat** (dark) and **Full P
 The taffy drag is JavaScript, so this needs [Sine](https://github.com/CosmoCreeper/Sine).
 
 1. Install Sine, then restart Zen.
-2. Put this folder in a GitHub repository (for example `SanctumOfSlime/oozamp-zen`), with `theme.json` at the top level.
+2. Put this folder in a GitHub repository (here `SanctumofSlime/OozAmp-zen-browser-theme`), with `theme.json` at the top level.
    If your repo has a different name, update the `image`, `readme` and `homepage` links in `theme.json`.
 3. In Zen open **Settings → Sine Mods**, open Sine's settings, and turn on **installing JS from unofficial sources**.
-4. Type the repo name (`SanctumOfSlime/oozamp-zen`) into the box under the marketplace and install it.
+4. Type the repo name (`SanctumofSlime/OozAmp-zen-browser-theme`) into the box under the marketplace and install it.
 5. Restart Zen when Sine asks. If the script doesn't seem to load, open `about:support`, click **Clear startup cache**, and restart.
 
 **CSS only:** if you'd rather not run JavaScript, turn the script off in Sine or delete `ooz-gel.uc.js`. Everything except the taffy drag still works.
