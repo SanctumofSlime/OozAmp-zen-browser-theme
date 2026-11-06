@@ -1,0 +1,100 @@
+[
+  {
+    "type": "separator",
+    "label": "Look",
+    "id": "ooz-look"
+  },
+  {
+    "property": "mod.oozamp.mode",
+    "label": "Mode",
+    "type": "dropdown",
+    "defaultValue": "auto",
+    "options": [
+      {
+        "label": "Follow Zen (Neon Vat dark, Full Pour light)",
+        "value": "auto"
+      },
+      {
+        "label": "Always Neon Vat (dark)",
+        "value": "dark"
+      },
+      {
+        "label": "Always Full Pour (light)",
+        "value": "light"
+      }
+    ]
+  },
+  {
+    "property": "mod.oozamp.no_bar",
+    "label": "Hide the dripping bar along the top",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.oozamp.no_edge",
+    "label": "Hide the sticky strings between the sidebar and the page",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.oozamp.no_bridges",
+    "label": "Unstick the tabs (no goo between them)",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.oozamp.plain_url",
+    "label": "Normal font in the address bar (no LCD)",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.oozamp.plain_workspace_name",
+    "label": "Normal font for the workspace name",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "Gooey drag (JavaScript)",
+    "id": "ooz-drag"
+  },
+  {
+    "property": "mod.oozamp.no_taffy",
+    "label": "Turn off the taffy stretch when pulling a tab out",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.oozamp.snap_distance",
+    "label": "Snap distance in pixels (50 to 400)",
+    "type": "string",
+    "defaultValue": "120"
+  },
+  {
+    "property": "mod.oozamp.skull_ride",
+    "label": "Skull riding the stretch",
+    "type": "dropdown",
+    "defaultValue": "always",
+    "options": [
+      {
+        "label": "Always",
+        "value": "always"
+      },
+      {
+        "label": "Sometimes",
+        "value": "sometimes"
+      },
+      {
+        "label": "Never",
+        "value": "off"
+      }
+    ]
+  },
+  {
+    "property": "mod.oozamp.debug",
+    "label": "Log drags to the Browser Console (for bug reports)",
+    "type": "checkbox",
+    "defaultValue": false
+  }
+]

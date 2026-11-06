@@ -1,0 +1,31 @@
+{
+  "id": "oozamp-gel",
+  "name": "OozAmp Gel",
+  "description": "Gelatinous-cube slime for Zen: blob tabs stuck together with goo, a dripping caution bar, sticky strings to the page, and tabs that stretch like taffy and snap off. Neon Vat (dark) and Full Pour (light).",
+  "image": "https://raw.githubusercontent.com/SanctumOfSlime/oozamp-zen/main/image.png",
+  "readme": "https://raw.githubusercontent.com/SanctumOfSlime/oozamp-zen/main/README.md",
+  "author": "Sanctum of Slime",
+  "version": "1.0.0",
+  "updatedAt": "2026-11-05T00:00:00Z",
+  "style": {
+    "chrome": "chrome.css"
+  },
+  "scripts": {
+    "ooz-gel.uc.js": {
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  },
+  "preferences": "preferences.json",
+  "tags": [
+    "chrome",
+    "theme",
+    "dark",
+    "light"
+  ],
+  "fork": [
+    "zen"
+  ],
+  "homepage": "https://github.com/SanctumOfSlime/oozamp-zen"
+}
