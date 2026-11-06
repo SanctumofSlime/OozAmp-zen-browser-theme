@@ -271,10 +271,16 @@
     const gx = d.c.x - d.offset.x, gy = d.c.y - d.offset.y;   // ghost centre
 
     if (!d.away || !tabBox) {
-      // inside the sidebar Zen moves the tab itself; let the goo relax
+      // inside the sidebar: no stretch, but the blob still follows the pointer
+      // (Zen only opens a gap, and the system drag image is blanked)
       d.paths.set("", "");
-      d.ghost.style.opacity = "0";
       d.skull.style.opacity = "0";
+      if (tabBox) {
+        d.ghost.style.opacity = "0.92";
+        d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
+      } else {
+        d.ghost.style.opacity = "0";
+      }
       if (d.snapped) {
         d.snapped = false;           // back home: it can stretch again
         pulse(d.tab, "ooz-plop");
