@@ -22,7 +22,37 @@
   const DROPS = ["M0.1,-6C1.4,-1.8 4.6,2.8 4.6,5.6A4.6,4.2 0 0 1 -4.6,5.5C-4.6,3.2 -1.9,-2.4 0.6,-6Z", "M0.4,-6C1.6,-1.8 5.0,1.8 5.0,6.1A5.0,4.6 0 0 1 -5.0,6.4C-5.0,2.5 -1.3,-1.7 -0.5,-6Z", "M0.1,-6C1.4,-2.8 5.4,3.2 5.4,6.0A5.4,5.0 0 0 1 -5.4,6.2C-5.4,3.3 -1.3,-1.3 -0.1,-6Z", "M-0.1,-6C2.1,-1.4 5.5,1.7 5.5,5.6A5.5,5.0 0 0 1 -5.5,5.7C-5.5,3.4 -1.7,-1.8 -0.2,-6Z", "M-0.1,-6C1.4,-1.9 5.0,2.7 5.0,6.4A5.0,4.6 0 0 1 -5.0,6.2C-5.0,3.4 -1.2,-1.2 0.2,-6Z", "M0.4,-6C2.2,-1.4 4.5,2.6 4.5,6.2A4.5,4.1 0 0 1 -4.5,5.7C-4.5,3.2 -1.5,-2.3 -0.5,-6Z"];
   const DEBUG = () => pref("mod.oozamp.debug", false);
   const log = (...a) => DEBUG() && console.log("[OozAmp Gel]", ...a);
-  console.info("[OozAmp Gel] script 1.0.5 loaded");
+  console.info("[OozAmp Gel] script 1.0.6 loaded");
+
+  // ---------------------------------------------------------------- top bar seam
+  // The CSS draws the quiet bar over the sidebar and the dripping bar from the
+  // sidebar's edge on. Tell it where that edge is, and keep it current when the
+  // sidebar is resized or moved to the other side. (Runs whether or not the taffy
+  // drag is turned on; it only does work when the sidebar's size changes.)
+  function watchSeam() {
+    const box = document.getElementById("navigator-toolbox");
+    if (!box) {
+      return false;
+    }
+    const root = document.documentElement;
+    let last = "";
+    const update = () => {
+      const r = box.getBoundingClientRect();
+      const v = `${Math.round(root.getAttribute("zen-right-side") === "true" ? r.left : r.right)}px`;
+      if (v !== last) {
+        last = v;
+        root.style.setProperty("--ooz-seam", v);
+      }
+    };
+    new ResizeObserver(update).observe(box);
+    new MutationObserver(update).observe(root, { attributes: true, attributeFilter: ["zen-right-side", "zen-compact-mode"] });
+    window.addEventListener("resize", update);
+    update();
+    return true;
+  }
+  if (!watchSeam()) {
+    window.addEventListener("load", watchSeam, { once: true });
+  }
 
   // ---------------------------------------------------------------- settings
   function pref(name, fallback) {
