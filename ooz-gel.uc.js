@@ -22,7 +22,7 @@
   const DROPS = ["M0.1,-6C1.4,-1.8 4.6,2.8 4.6,5.6A4.6,4.2 0 0 1 -4.6,5.5C-4.6,3.2 -1.9,-2.4 0.6,-6Z", "M0.4,-6C1.6,-1.8 5.0,1.8 5.0,6.1A5.0,4.6 0 0 1 -5.0,6.4C-5.0,2.5 -1.3,-1.7 -0.5,-6Z", "M0.1,-6C1.4,-2.8 5.4,3.2 5.4,6.0A5.4,5.0 0 0 1 -5.4,6.2C-5.4,3.3 -1.3,-1.3 -0.1,-6Z", "M-0.1,-6C2.1,-1.4 5.5,1.7 5.5,5.6A5.5,5.0 0 0 1 -5.5,5.7C-5.5,3.4 -1.7,-1.8 -0.2,-6Z", "M-0.1,-6C1.4,-1.9 5.0,2.7 5.0,6.4A5.0,4.6 0 0 1 -5.0,6.2C-5.0,3.4 -1.2,-1.2 0.2,-6Z", "M0.4,-6C2.2,-1.4 4.5,2.6 4.5,6.2A4.5,4.1 0 0 1 -4.5,5.7C-4.5,3.2 -1.5,-2.3 -0.5,-6Z"];
   const DEBUG = () => pref("mod.oozamp.debug", false);
   const log = (...a) => DEBUG() && console.log("[OozAmp Gel]", ...a);
-  console.info("[OozAmp Gel] script 1.0.4 loaded");
+  console.info("[OozAmp Gel] script 1.0.5 loaded");
 
   // ---------------------------------------------------------------- settings
   function pref(name, fallback) {
@@ -195,7 +195,7 @@
     const p = pointOf(event);
     const box = tab.getBoundingClientRect();
     const selected = tab.hasAttribute("selected");
-    const fill = cssVar(selected ? "--ooz-sel" : "--ooz-tab", selected ? "#CCFF00" : "#3a6c00");
+    const fill = cssVar(selected ? "--ooz-sel" : "--ooz-tab", selected ? "#DFFF00" : "#3a6c00");
     const ghost = document.createElementNS(HTML, "div");
     ghost.className = "ooz-ghost";
     if (selected) {
@@ -222,8 +222,8 @@
     const ride = S.skull === "always" || (S.skull === "sometimes" && Math.random() < 0.34);
     drag = {
       tab, ghost, skull, ride, fill, S,
-      rim: cssVar("--ooz-taffy-rim", "rgba(204,255,0,.7)"),
-      drop: cssVar("--ooz-drop", "#CCFF00"),
+      rim: cssVar("--ooz-taffy-rim", "rgba(223,255,0,.7)"),
+      drop: cssVar("--ooz-drop", "#DFFF00"),
       paths: null,
       p, c: { ...p },
       offset: { x: p.x - (box.left + Math.min(260, box.width) / 2), y: p.y - (box.top + box.height / 2) },
