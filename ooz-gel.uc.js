@@ -22,7 +22,7 @@
   const DROPS = ["M0.1,-6C1.4,-1.8 4.6,2.8 4.6,5.6A4.6,4.2 0 0 1 -4.6,5.5C-4.6,3.2 -1.9,-2.4 0.6,-6Z", "M0.4,-6C1.6,-1.8 5.0,1.8 5.0,6.1A5.0,4.6 0 0 1 -5.0,6.4C-5.0,2.5 -1.3,-1.7 -0.5,-6Z", "M0.1,-6C1.4,-2.8 5.4,3.2 5.4,6.0A5.4,5.0 0 0 1 -5.4,6.2C-5.4,3.3 -1.3,-1.3 -0.1,-6Z", "M-0.1,-6C2.1,-1.4 5.5,1.7 5.5,5.6A5.5,5.0 0 0 1 -5.5,5.7C-5.5,3.4 -1.7,-1.8 -0.2,-6Z", "M-0.1,-6C1.4,-1.9 5.0,2.7 5.0,6.4A5.0,4.6 0 0 1 -5.0,6.2C-5.0,3.4 -1.2,-1.2 0.2,-6Z", "M0.4,-6C2.2,-1.4 4.5,2.6 4.5,6.2A4.5,4.1 0 0 1 -4.5,5.7C-4.5,3.2 -1.5,-2.3 -0.5,-6Z"];
   const DEBUG = () => pref("mod.oozamp.debug", false);
   const log = (...a) => DEBUG() && console.log("[OozAmp Gel]", ...a);
-  console.info("[OozAmp Gel] script 1.0.2 loaded");
+  console.info("[OozAmp Gel] script 1.0.4 loaded");
 
   // ---------------------------------------------------------------- settings
   function pref(name, fallback) {
@@ -171,10 +171,12 @@
     }
     return null;
   };
-  const pointOf = (e) => ({
-    x: e.clientX || (e.screenX ? e.screenX - window.mozInnerScreenX : 0),
-    y: e.clientY || (e.screenY ? e.screenY - window.mozInnerScreenY : 0),
-  });
+  // Screen coordinates first: drag events coming up from the page (a remote browser)
+  // can carry clientX/Y measured from the page's corner, which made the blob jump
+  // to the left edge of the window. Screen minus window position is always right.
+  const pointOf = (e) => (typeof window.mozInnerScreenX === "number" && (e.screenX || e.screenY))
+    ? { x: e.screenX - window.mozInnerScreenX, y: e.screenY - window.mozInnerScreenY }
+    : { x: e.clientX || 0, y: e.clientY || 0 };
   const sidebarBox = () => document.getElementById("navigator-toolbox")?.getBoundingClientRect();
 
   function begin(event) {
@@ -226,7 +228,7 @@
       p, c: { ...p },
       offset: { x: p.x - (box.left + Math.min(260, box.width) / 2), y: p.y - (box.top + box.height / 2) },
       w: Math.min(260, box.width), h: box.height,
-      snapped: false, away: false, done: false, t: 0, len: 0,
+      snapped: false, away: false, outside: false, done: false, t: 0, len: 0,
       skullRot: Math.random() * 50 - 25,
       lastOver: Date.now(), last: performance.now(), raf: 0,
     };
@@ -268,42 +270,38 @@
 
     const tabBox = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
     const side = sidebarBox();
-    // only stretch once the pointer is clearly out over the page, not just near the edge
-    d.away = !!side && !!tabBox && (d.p.x > side.right + 10 || d.p.x < side.left - 10);
+    d.outside = !!side && (d.p.x > side.right + 10 || d.p.x < side.left - 10);
     const gx = d.c.x - d.offset.x, gy = d.c.y - d.offset.y;   // ghost centre
 
-    if (!d.away || !tabBox) {
-      // inside the sidebar: no stretch, but the blob still follows the pointer
-      // (Zen only opens a gap, and the system drag image is blanked)
+    if (!tabBox) {
       d.paths.set("", "");
       d.skull.style.opacity = "0";
-      if (tabBox) {
-        d.ghost.style.opacity = "1";
-        d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
-      } else {
-        d.ghost.style.opacity = "0";
-      }
-      if (d.snapped) {
-        d.snapped = false;           // back home: it can stretch again
+      d.ghost.style.opacity = "0";
+      d.raf = requestAnimationFrame(frame);
+      return;
+    }
+
+    // The blob always follows the pointer, and the taffy stretches from the tab's
+    // slot to it in any direction: up and down the sidebar while reordering as well
+    // as out over the page (the way the preview worked).
+    d.ghost.style.opacity = "1";
+    d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
+    const a = anchorOn(tabBox, { x: gx, y: gy });
+    const ghostBox = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
+    const b = anchorOn(ghostBox, a);
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    d.away = dist > 4;
+
+    if (d.snapped) {
+      d.paths.set("", "");
+      d.skull.style.opacity = "0";
+      if (dist < 3) {
+        d.snapped = false;           // brought back home: it sticks again
         pulse(d.tab, "ooz-plop");
       }
       d.raf = requestAnimationFrame(frame);
       return;
     }
-
-    d.ghost.style.opacity = "1";
-    d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
-    if (d.snapped) {
-      d.paths.set("", "");
-      d.skull.style.opacity = "0";
-      d.raf = requestAnimationFrame(frame);
-      return;
-    }
-
-    const a = anchorOn(tabBox, { x: gx, y: gy });
-    const ghostBox = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
-    const b = anchorOn(ghostBox, a);
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
     const t = Math.min(1, dist / d.S.snap);
     d.t = t;
     d.len = dist;
@@ -365,12 +363,17 @@
       setTimeout(finish, 200);
       return;
     }
-    // let go while still stuck: the strand pulls the blob back and shrinks away
+    // let go while still stuck: the strand pulls the blob into the tab and shrinks
+    // away. The tab is measured every frame, so after a reorder the blob is pulled
+    // to the tab's new place rather than where it started.
     const start = performance.now();
     const from = { x: d.c.x, y: d.c.y };
-    const box = d.tab.getBoundingClientRect();
-    const home = { x: box.left + box.width / 2 + d.offset.x, y: box.top + box.height / 2 + d.offset.y };
+    let box = d.tab.getBoundingClientRect();
     const step = (now) => {
+      if (d.tab.isConnected) {
+        box = d.tab.getBoundingClientRect();
+      }
+      const home = { x: box.left + box.width / 2 + d.offset.x, y: box.top + box.height / 2 + d.offset.y };
       const k = Math.min(1, (now - start) / 220), e = 1 - Math.pow(1 - k, 3);
       d.c.x = from.x + (home.x - from.x) * e;
       d.c.y = from.y + (home.y - from.y) * e;
@@ -408,7 +411,7 @@
   window.addEventListener("dragend", end, true);
   // the pointer left the window mid-drag (heading for a new window): let it snap
   window.addEventListener("dragleave", (e) => {
-    if (drag && !drag.done && !e.relatedTarget && !drag.snapped && drag.away) {
+    if (drag && !drag.done && !e.relatedTarget && !drag.snapped && drag.outside) {
       drag.mid = drag.mid || { ...drag.c };
       snap();
     }

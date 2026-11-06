@@ -5,8 +5,8 @@
   "image": "https://raw.githubusercontent.com/SanctumofSlime/OozAmp-zen-browser-theme/main/image.png",
   "readme": "https://raw.githubusercontent.com/SanctumofSlime/OozAmp-zen-browser-theme/main/README.md",
   "author": "Sanctum of Slime",
-  "version": "1.0.2",
-  "updatedAt": "2026-11-06T04:00:00Z",
+  "version": "1.0.4",
+  "updatedAt": "2026-11-06T04:10:00Z",
   "style": {
     "chrome": "chrome.css"
   },
