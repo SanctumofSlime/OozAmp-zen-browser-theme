@@ -1,4 +1,4 @@
-// OozAmp Gel for Zen: gooey tab drags (a Sine mod script).
+// OozAmp Gel for Zen 1.1: gooey tab drags and the living vat (a Sine mod script).
 // Pull a tab out of the sidebar and it stretches like taffy, a bead of goo
 // carrying the OozAmp skull riding the strand; past the snap distance it
 // breaks and the bead falls away as a droplet. Zen still does the real work
@@ -22,37 +22,6 @@
   const DROPS = ["M0.1,-6C1.4,-1.8 4.6,2.8 4.6,5.6A4.6,4.2 0 0 1 -4.6,5.5C-4.6,3.2 -1.9,-2.4 0.6,-6Z", "M0.4,-6C1.6,-1.8 5.0,1.8 5.0,6.1A5.0,4.6 0 0 1 -5.0,6.4C-5.0,2.5 -1.3,-1.7 -0.5,-6Z", "M0.1,-6C1.4,-2.8 5.4,3.2 5.4,6.0A5.4,5.0 0 0 1 -5.4,6.2C-5.4,3.3 -1.3,-1.3 -0.1,-6Z", "M-0.1,-6C2.1,-1.4 5.5,1.7 5.5,5.6A5.5,5.0 0 0 1 -5.5,5.7C-5.5,3.4 -1.7,-1.8 -0.2,-6Z", "M-0.1,-6C1.4,-1.9 5.0,2.7 5.0,6.4A5.0,4.6 0 0 1 -5.0,6.2C-5.0,3.4 -1.2,-1.2 0.2,-6Z", "M0.4,-6C2.2,-1.4 4.5,2.6 4.5,6.2A4.5,4.1 0 0 1 -4.5,5.7C-4.5,3.2 -1.5,-2.3 -0.5,-6Z"];
   const DEBUG = () => pref("mod.oozamp.debug", false);
   const log = (...a) => DEBUG() && console.log("[OozAmp Gel]", ...a);
-  console.info("[OozAmp Gel] script 1.0.6 loaded");
-
-  // ---------------------------------------------------------------- top bar seam
-  // The CSS draws the quiet bar over the sidebar and the dripping bar from the
-  // sidebar's edge on. Tell it where that edge is, and keep it current when the
-  // sidebar is resized or moved to the other side. (Runs whether or not the taffy
-  // drag is turned on; it only does work when the sidebar's size changes.)
-  function watchSeam() {
-    const box = document.getElementById("navigator-toolbox");
-    if (!box) {
-      return false;
-    }
-    const root = document.documentElement;
-    let last = "";
-    const update = () => {
-      const r = box.getBoundingClientRect();
-      const v = `${Math.round(root.getAttribute("zen-right-side") === "true" ? r.left : r.right)}px`;
-      if (v !== last) {
-        last = v;
-        root.style.setProperty("--ooz-seam", v);
-      }
-    };
-    new ResizeObserver(update).observe(box);
-    new MutationObserver(update).observe(root, { attributes: true, attributeFilter: ["zen-right-side", "zen-compact-mode"] });
-    window.addEventListener("resize", update);
-    update();
-    return true;
-  }
-  if (!watchSeam()) {
-    window.addEventListener("load", watchSeam, { once: true });
-  }
 
   // ---------------------------------------------------------------- settings
   function pref(name, fallback) {
@@ -201,12 +170,10 @@
     }
     return null;
   };
-  // Screen coordinates first: drag events coming up from the page (a remote browser)
-  // can carry clientX/Y measured from the page's corner, which made the blob jump
-  // to the left edge of the window. Screen minus window position is always right.
-  const pointOf = (e) => (typeof window.mozInnerScreenX === "number" && (e.screenX || e.screenY))
-    ? { x: e.screenX - window.mozInnerScreenX, y: e.screenY - window.mozInnerScreenY }
-    : { x: e.clientX || 0, y: e.clientY || 0 };
+  const pointOf = (e) => ({
+    x: e.clientX || (e.screenX ? e.screenX - window.mozInnerScreenX : 0),
+    y: e.clientY || (e.screenY ? e.screenY - window.mozInnerScreenY : 0),
+  });
   const sidebarBox = () => document.getElementById("navigator-toolbox")?.getBoundingClientRect();
 
   function begin(event) {
@@ -225,7 +192,7 @@
     const p = pointOf(event);
     const box = tab.getBoundingClientRect();
     const selected = tab.hasAttribute("selected");
-    const fill = cssVar(selected ? "--ooz-sel" : "--ooz-tab", selected ? "#DFFF00" : "#3a6c00");
+    const fill = cssVar(selected ? "--ooz-sel" : "--ooz-tab", selected ? "#CCFF00" : "#3a6c00");
     const ghost = document.createElementNS(HTML, "div");
     ghost.className = "ooz-ghost";
     if (selected) {
@@ -252,13 +219,13 @@
     const ride = S.skull === "always" || (S.skull === "sometimes" && Math.random() < 0.34);
     drag = {
       tab, ghost, skull, ride, fill, S,
-      rim: cssVar("--ooz-taffy-rim", "rgba(223,255,0,.7)"),
-      drop: cssVar("--ooz-drop", "#DFFF00"),
+      rim: cssVar("--ooz-taffy-rim", "rgba(204,255,0,.7)"),
+      drop: cssVar("--ooz-drop", "#CCFF00"),
       paths: null,
       p, c: { ...p },
       offset: { x: p.x - (box.left + Math.min(260, box.width) / 2), y: p.y - (box.top + box.height / 2) },
       w: Math.min(260, box.width), h: box.height,
-      snapped: false, away: false, outside: false, done: false, t: 0, len: 0,
+      snapped: false, away: false, done: false, t: 0, len: 0,
       skullRot: Math.random() * 50 - 25,
       lastOver: Date.now(), last: performance.now(), raf: 0,
     };
@@ -300,38 +267,35 @@
 
     const tabBox = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
     const side = sidebarBox();
-    d.outside = !!side && (d.p.x > side.right + 10 || d.p.x < side.left - 10);
+    d.away = !!side && !!tabBox && (d.p.x > side.right - 4 || d.p.x < side.left + 4);
     const gx = d.c.x - d.offset.x, gy = d.c.y - d.offset.y;   // ghost centre
 
-    if (!tabBox) {
+    if (!d.away || !tabBox) {
+      // inside the sidebar Zen moves the tab itself; let the goo relax
       d.paths.set("", "");
-      d.skull.style.opacity = "0";
       d.ghost.style.opacity = "0";
-      d.raf = requestAnimationFrame(frame);
-      return;
-    }
-
-    // The blob always follows the pointer, and the taffy stretches from the tab's
-    // slot to it in any direction: up and down the sidebar while reordering as well
-    // as out over the page (the way the preview worked).
-    d.ghost.style.opacity = "1";
-    d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
-    const a = anchorOn(tabBox, { x: gx, y: gy });
-    const ghostBox = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
-    const b = anchorOn(ghostBox, a);
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    d.away = dist > 4;
-
-    if (d.snapped) {
-      d.paths.set("", "");
       d.skull.style.opacity = "0";
-      if (dist < 3) {
-        d.snapped = false;           // brought back home: it sticks again
+      if (d.snapped) {
+        d.snapped = false;           // back home: it can stretch again
         pulse(d.tab, "ooz-plop");
       }
       d.raf = requestAnimationFrame(frame);
       return;
     }
+
+    d.ghost.style.opacity = "1";
+    d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
+    if (d.snapped) {
+      d.paths.set("", "");
+      d.skull.style.opacity = "0";
+      d.raf = requestAnimationFrame(frame);
+      return;
+    }
+
+    const a = anchorOn(tabBox, { x: gx, y: gy });
+    const ghostBox = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
+    const b = anchorOn(ghostBox, a);
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
     const t = Math.min(1, dist / d.S.snap);
     d.t = t;
     d.len = dist;
@@ -393,17 +357,12 @@
       setTimeout(finish, 200);
       return;
     }
-    // let go while still stuck: the strand pulls the blob into the tab and shrinks
-    // away. The tab is measured every frame, so after a reorder the blob is pulled
-    // to the tab's new place rather than where it started.
+    // let go while still stuck: the strand pulls the blob back and shrinks away
     const start = performance.now();
     const from = { x: d.c.x, y: d.c.y };
-    let box = d.tab.getBoundingClientRect();
+    const box = d.tab.getBoundingClientRect();
+    const home = { x: box.left + box.width / 2 + d.offset.x, y: box.top + box.height / 2 + d.offset.y };
     const step = (now) => {
-      if (d.tab.isConnected) {
-        box = d.tab.getBoundingClientRect();
-      }
-      const home = { x: box.left + box.width / 2 + d.offset.x, y: box.top + box.height / 2 + d.offset.y };
       const k = Math.min(1, (now - start) / 220), e = 1 - Math.pow(1 - k, 3);
       d.c.x = from.x + (home.x - from.x) * e;
       d.c.y = from.y + (home.y - from.y) * e;
@@ -441,7 +400,7 @@
   window.addEventListener("dragend", end, true);
   // the pointer left the window mid-drag (heading for a new window): let it snap
   window.addEventListener("dragleave", (e) => {
-    if (drag && !drag.done && !e.relatedTarget && !drag.snapped && drag.outside) {
+    if (drag && !drag.done && !e.relatedTarget && !drag.snapped && drag.away) {
       drag.mid = drag.mid || { ...drag.c };
       snap();
     }
@@ -452,5 +411,139 @@
       end();
     }
   }, true);
+
+  // ---------------------------------------------------------------- the vat
+  // Bubbles rise and skulls bob in the open gel at the bottom of the sidebar;
+  // now and then a bubble pops, a skull turns over or a sewer pipe drips.
+  // Transform/opacity only; nothing runs while Zen isn't the focused window.
+  const VAT = { front: "data:image/webp;base64,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", mid: "data:image/webp;base64,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", deep: "data:image/webp;base64,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" };
+  const TIPS = {"0": [43.05, 87.13, 3.16], "1": [38.99, 87.94, 2.76], "2": [35.08, 86.02, 3.3], "3": [39.56, 83.61, 3.36], "4": [42.86, 83.2, 2.82], "5": [38.94, 84.08, 2.79], "6": [41.14, 87.87, 3.3]};
+  const PIPE_ORDER = [0, 5, 2, 7, 4, 1, 6, 3];
+  const R = (a, b) => a + Math.random() * (b - a);
+  const focused = () => document.hasFocus() && !document.hidden;
+  const floatLayer = () => document.getElementById("ooz-float");
+
+  function buildFloat() {
+    if (pref("mod.oozamp.no_float", false) || floatLayer()) {
+      return;
+    }
+    const toolbox = document.getElementById("navigator-toolbox");
+    if (!toolbox) {
+      return;
+    }
+    const f = document.createElementNS(HTML, "div");
+    f.id = "ooz-float";
+    for (let i = 0; i < 7; i++) {
+      const b = document.createElementNS(HTML, "div");
+      b.className = "ooz-bub";
+      const size = [5, 7, 9, 12][Math.floor(Math.random() * 4)];
+      b.setAttribute("style", `left:${R(6, 88).toFixed(0)}%;top:${R(35, 96).toFixed(0)}%;width:${size}px;height:${size}px;` +
+        `--rise:${(-R(90, 170)).toFixed(0)}px;--sway:${R(3, 7).toFixed(1)}px;animation-duration:${R(9, 16).toFixed(1)}s;animation-delay:${(-R(0, 14)).toFixed(1)}s`);
+      f.appendChild(b);
+    }
+    // five skulls, tiny to large; the deeper ones are smaller, softer, greener
+    const skulls = [["deep", 10], ["deep", 15], ["mid", 22], ["mid", 32], ["front", 46]];
+    const slots = [8, 26, 44, 62, 80].sort(() => Math.random() - 0.5);
+    skulls.forEach(([depth, size], i) => {
+      const w = document.createElementNS(HTML, "div");
+      w.className = "ooz-skw";
+      w.setAttribute("style", `left:calc(${slots[i] + R(-5, 5)}% - ${size / 2}px);top:${R(22, 78).toFixed(0)}%;width:${size}px;height:${size}px;${depth === "deep" ? "opacity:.7;" : ""}`);
+      const img = document.createElementNS(HTML, "img");
+      img.className = "ooz-sk";
+      img.src = VAT[depth];
+      img.setAttribute("style", `--rot:${R(4, 9).toFixed(1)}deg;animation-duration:${R(5.5, 8.5).toFixed(1)}s;animation-delay:${(-R(0, 6)).toFixed(1)}s`);
+      w.appendChild(img);
+      f.appendChild(w);
+    });
+    toolbox.appendChild(f);
+    log("vat ready");
+  }
+
+  function popBubble() {
+    const f = floatLayer();
+    const bubbles = f ? [...f.querySelectorAll(".ooz-bub")].filter((b) => b.style.visibility !== "hidden") : [];
+    if (!bubbles.length) {
+      return;
+    }
+    const b = bubbles[Math.floor(Math.random() * bubbles.length)];
+    const r = b.getBoundingClientRect(), fr = f.getBoundingClientRect();
+    if (r.top < fr.top) {
+      return;
+    }
+    const p = document.createElementNS(HTML, "div");
+    p.className = "ooz-pop";
+    p.style.left = `${r.left + r.width / 2 - fr.left}px`;
+    p.style.top = `${r.top + r.height / 2 - fr.top}px`;
+    p.appendChild(document.createElementNS(HTML, "i"));
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2 + Math.random();
+      const d = document.createElementNS(HTML, "b");
+      d.style.setProperty("--dx", `${(Math.cos(a) * 11).toFixed(1)}px`);
+      d.style.setProperty("--dy", `${(Math.sin(a) * 11).toFixed(1)}px`);
+      p.appendChild(d);
+    }
+    f.appendChild(p);
+    setTimeout(() => p.remove(), 700);
+    b.style.visibility = "hidden";
+    setTimeout(() => (b.style.visibility = ""), 2500);
+  }
+
+  function turnSkull() {
+    const f = floatLayer();
+    const ws = f ? [...f.querySelectorAll(".ooz-skw:not(.ooz-flip)")] : [];
+    if (!ws.length) {
+      return;
+    }
+    const w = ws[Math.floor(Math.random() * ws.length)];
+    w.classList.add("ooz-flip");
+    w.addEventListener("animationend", () => w.classList.remove("ooz-flip"), { once: true });
+  }
+
+  function pipeDrip() {
+    const tiles = [...document.querySelectorAll(".tabbrowser-tab[zen-essential]")].filter((t) => t.getBoundingClientRect().width > 0);
+    if (!tiles.length) {
+      return;
+    }
+    ensureLayer();
+    const t = tiles[Math.floor(Math.random() * tiles.length)];
+    const idx = [...t.parentElement.children].indexOf(t);
+    const tip = TIPS[PIPE_ORDER[((idx % 8) + 8) % 8]] || [40, 82, 2.8];
+    const r = t.getBoundingClientRect();
+    const k = 53 / 80;                                   // pipe art is drawn at 80 wide, shown at 53
+    const d = document.createElementNS(HTML, "div");
+    d.className = "ooz-pdrop";
+    d.style.left = `${r.left + r.width / 2 - 26.5 + tip[0] * k}px`;
+    d.style.top = `${r.top + r.height / 2 - 26 + tip[1] * k - 2}px`;
+    layer.appendChild(d);
+    setTimeout(() => d.remove(), 1800);
+  }
+
+  function every(fn, lo, hi) {
+    const next = () => setTimeout(() => {
+      try {
+        if (focused() && !reducedMotion() && !pref("mod.oozamp.no_events", false)) {
+          fn();
+        }
+      } catch (e) {
+        log("event failed", e);
+      }
+      next();
+    }, R(lo, hi) * 1000);
+    next();
+  }
+
+  function startVat() {
+    buildFloat();
+    setTimeout(buildFloat, 2000);       // Zen may build the sidebar a little later
+    every(popBubble, 20, 40);
+    every(turnSkull, 25, 45);
+    every(pipeDrip, 15, 35);
+  }
+  if (document.readyState === "complete") {
+    startVat();
+  } else {
+    window.addEventListener("load", startVat, { once: true });
+  }
   window.addEventListener("unload", () => layer?.remove(), { once: true });
+  window.addEventListener("unload", () => floatLayer()?.remove(), { once: true });
 })();

@@ -1,18 +1,20 @@
 # OozAmp Gel for Zen
 
-*A Sanctum of Slime theme.* Gelatinous-cube slime for [Zen Browser](https://zen-browser.app): blob tabs stuck together with goo, a dripping caution bar with skulls suspended in it, sticky strings gluing the sidebar to the page, and tabs that stretch like taffy when you pull them out, then snap off and drip.
+*A Sanctum of Slime theme.* Gelatinous-cube slime for [Zen Browser](https://zen-browser.app). Everything around the web page is one pool of glowing gel. Blob tabs are stuck together with goo, the Essentials are sewer pipes pouring slime, and bubbles and skulls drift in the vat. Pull a tab out of the sidebar and it stretches like taffy, then snaps off and drips.
 
-Two looks that follow Zen's light/dark setting: **Neon Vat** (dark) and **Full Pour** (light).
+One look: **Neon Vat**.
 
 ## What's in it
 
 | Piece | Made with |
 |---|---|
-| Colours, embedded fonts, blob tabs, goo between tabs, pipe-mouth Essentials, LCD address bar, glowing page frame, solid menus | CSS |
-| Dripping caution bar with suspended skulls, sticky-strings sidebar edge | CSS, using two pre-rendered images |
-| Taffy stretch when you pull a tab out of the sidebar, snap at a set distance, droplet left behind, skull riding the stretch | JavaScript (`ooz-gel.uc.js`) |
+| The gel around the page (a pre-rendered strip plus CSS), lit from below; wet yellow-chartreuse rim round the page; blob tabs sunk in the gel with goo between them; sewer-pipe Essentials; LCD address bar; solid menus; embedded fonts | CSS |
+| Bubbles and skulls floating in the sidebar; now and then a bubble pops, a skull turns over or a pipe drips | JavaScript |
+| Taffy stretch when you pull a tab out of the sidebar, snap at a set distance, droplet left behind, skull riding the stretch | JavaScript |
 
-**Performance:** nothing animates while you browse. No blur, no backdrop-filter, no looping animations. The goo art is still images drawn once. The script only runs while you're dragging a tab: one shape and a few transforms per frame.
+**Performance:** the gel is a still image painted once. No blur, no backdrop-filter. The only things that move are seven bubbles, five skulls and the occasional one-off moment, all using transform and opacity, which never repaints anything else. They pause whenever Zen isn't the focused window and respect your system's reduce-motion setting.
+
+You can also drag the window from the strip of gel above the page.
 
 ## Install (Sine)
 
@@ -31,15 +33,12 @@ The taffy drag is JavaScript, so this needs [Sine](https://github.com/CosmoCreep
 
 All in the mod's settings in Sine:
 
-- **Mode:** follow Zen, or pin Neon Vat or Full Pour.
-- **Hide the dripping bar / Hide the sticky strings / Unstick the tabs:** switch off any piece you don't want.
-- **Normal font in the address bar / for the workspace name:** if you'd rather not have the LCD or drippy lettering there.
-- **Turn off the taffy stretch.**
-- **Snap distance:** how far you can pull before it breaks (default 120 px).
+- **Unstick the tabs:** no goo between neighbouring tabs.
+- **Normal font in the address bar / for the workspace name.**
+- **Turn off the floating bubbles and skulls / the rare moments / the taffy stretch.**
+- **Snap distance:** how far you can pull a tab before it breaks (default 120 px).
 - **Skull riding the stretch:** always, sometimes or never.
-- **Log drags to the Browser Console:** turn on when reporting a drag problem.
-
-The script also respects your system's *reduce motion* setting.
+- **Log to the Browser Console:** turn on when reporting a problem.
 
 ## If something looks wrong
 

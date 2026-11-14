@@ -5,38 +5,6 @@
     "id": "ooz-look"
   },
   {
-    "property": "mod.oozamp.mode",
-    "label": "Mode",
-    "type": "dropdown",
-    "defaultValue": "auto",
-    "options": [
-      {
-        "label": "Follow Zen (Neon Vat dark, Full Pour light)",
-        "value": "auto"
-      },
-      {
-        "label": "Always Neon Vat (dark)",
-        "value": "dark"
-      },
-      {
-        "label": "Always Full Pour (light)",
-        "value": "light"
-      }
-    ]
-  },
-  {
-    "property": "mod.oozamp.no_bar",
-    "label": "Hide the dripping bar along the top",
-    "type": "checkbox",
-    "defaultValue": false
-  },
-  {
-    "property": "mod.oozamp.no_edge",
-    "label": "Hide the sticky strings between the sidebar and the page",
-    "type": "checkbox",
-    "defaultValue": false
-  },
-  {
     "property": "mod.oozamp.no_bridges",
     "label": "Unstick the tabs (no goo between them)",
     "type": "checkbox",
@@ -56,8 +24,20 @@
   },
   {
     "type": "separator",
-    "label": "Gooey drag (JavaScript)",
-    "id": "ooz-drag"
+    "label": "Motion (JavaScript)",
+    "id": "ooz-motion"
+  },
+  {
+    "property": "mod.oozamp.no_float",
+    "label": "Turn off the bubbles and skulls floating in the sidebar",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.oozamp.no_events",
+    "label": "Turn off the rare moments (bubble pops, skull turns, pipe drips)",
+    "type": "checkbox",
+    "defaultValue": false
   },
   {
     "property": "mod.oozamp.no_taffy",
@@ -93,7 +73,7 @@
   },
   {
     "property": "mod.oozamp.debug",
-    "label": "Log drags to the Browser Console (for bug reports)",
+    "label": "Log to the Browser Console (for bug reports)",
     "type": "checkbox",
     "defaultValue": false
   }
