@@ -49,7 +49,7 @@
     "property": "mod.oozamp.snap_distance",
     "label": "Snap distance in pixels (50 to 400)",
     "type": "string",
-    "defaultValue": "120"
+    "defaultValue": "90"
   },
   {
     "property": "mod.oozamp.skull_ride",
