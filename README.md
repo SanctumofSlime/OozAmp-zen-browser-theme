@@ -36,7 +36,7 @@ All in the mod's settings in Sine:
 - **Unstick the tabs:** no goo between neighbouring tabs.
 - **Normal font in the address bar / for the workspace name.**
 - **Turn off the floating bubbles and skulls / the rare moments / the taffy stretch.**
-- **Snap distance:** how far you can pull a tab before it breaks (default 120 px).
+- **Snap distance:** how far you can pull a tab before it breaks (default 90 px).
 - **Skull riding the stretch:** always, sometimes or never.
 - **Log to the Browser Console:** turn on when reporting a problem.
 

@@ -176,7 +176,7 @@
 #tabbrowser-tabs .tabbrowser-tab:not([zen-essential]) .tab-background {
   background: var(--ooz-tab) !important;
   border-radius: var(--ooz-r, 16px 22px 14px 20px / 20px 14px 22px 16px) !important;
-  box-shadow: inset 0 0 0 1.5px var(--ooz-rim), inset 0 -4px 7px rgba(204, 255, 0, .16), 0 0 0 2px rgba(8, 22, 0, .4), 0 3px 8px rgba(6, 18, 0, .45) !important;
+  box-shadow: inset 0 0 0 1.5px var(--ooz-rim), inset 0 -4px 7px rgba(204, 255, 0, .16), 0 0 0 1px rgba(8, 22, 0, .3), 0 2px 4px rgba(6, 18, 0, .28) !important;
   outline: none !important;
 }
 #tabbrowser-tabs .tabbrowser-tab:not([zen-essential]):hover .tab-background { background: var(--ooz-tab-hover) !important; }
@@ -185,7 +185,7 @@
 #tabbrowser-tabs .tabbrowser-tab:not([zen-essential]):has(+ .tabbrowser-tab[selected]) { --ooz-fb: var(--ooz-sel); }
 #tabbrowser-tabs .tabbrowser-tab:not([zen-essential])[selected] .tab-background {
   background: var(--ooz-sel) !important;
-  box-shadow: inset 0 0 0 1.5px var(--ooz-sel-rim), inset 0 -4px 7px rgba(255, 255, 160, .35), 0 0 0 2px rgba(8, 22, 0, .4), 0 3px 8px rgba(6, 18, 0, .45), 0 0 14px rgba(230, 255, 0, .5) !important;
+  box-shadow: inset 0 0 0 1.5px var(--ooz-sel-rim), inset 0 -4px 7px rgba(255, 255, 160, .35), 0 0 0 1px rgba(8, 22, 0, .3), 0 2px 4px rgba(6, 18, 0, .28), 0 0 14px rgba(230, 255, 0, .5) !important;
 }
 #tabbrowser-tabs .tabbrowser-tab:not([zen-essential])[selected] :is(.tab-label, .tab-close-button) { color: var(--ooz-sel-text) !important; }
 #tabbrowser-tabs .tabbrowser-tab .tab-close-button:hover { background: #ff00ff !important; color: #fff !important; border-radius: 50% !important; }
@@ -203,12 +203,13 @@
   content: "";
   position: absolute;
   inset-inline: 14px;
-  top: calc(100% - 5px);
-  height: 16px;
-  z-index: 1;
+  top: calc(100% - 6px);
+  height: 18px;
+  z-index: 3;                    /* above the tab bodies, so the goo merges into them */
   pointer-events: none;
-  background: linear-gradient(var(--ooz-fa), var(--ooz-fb));
+  background: linear-gradient(var(--ooz-fa), color-mix(in srgb, var(--ooz-fa) 55%, #9ad600) 50%, var(--ooz-fb));
   mask: var(--ooz-bridge, var(--ooz-b1)) 0 0 / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 1.5px rgba(238, 255, 46, .7));
   transition: opacity .15s ease;
 }
 .tabbrowser-tab:nth-child(7n+1) { --ooz-bridge: var(--ooz-b1); }
