@@ -225,7 +225,7 @@
       p, c: { ...p },
       offset: { x: p.x - (box.left + Math.min(260, box.width) / 2), y: p.y - (box.top + box.height / 2) },
       w: Math.min(260, box.width), h: box.height,
-      snapped: false, away: false, done: false, t: 0, len: 0,
+      snapped: false, away: false, done: false, t: 0, len: 0, start: { ...p }, frameN: 0,
       skullRot: Math.random() * 50 - 25,
       lastOver: Date.now(), last: performance.now(), raf: 0,
     };
@@ -261,51 +261,64 @@
     const d = drag;
     const dt = Math.min(64, now - d.last);
     d.last = now;
-    // goo has a little lag: ease toward the pointer
-    const k = 1 - Math.pow(0.6, dt / 16.7);
+    const k = 1 - Math.pow(0.6, dt / 16.7);               // goo has a little lag
     d.c.x += (d.p.x - d.c.x) * k;
     d.c.y += (d.p.y - d.c.y) * k;
 
     const tabBox = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
     const side = sidebarBox();
-    d.away = !!side && !!tabBox && (d.p.x > side.right - 4 || d.p.x < side.left + 4);
-    // the blob is pulled by its near end: the stretch starts the moment you leave the sidebar
-    const toRight = !side || d.p.x > side.left + side.width / 2;
-    d.ox = toRight ? 24 - d.w / 2 : d.w / 2 - 24;
-    const gx = d.c.x - d.ox, gy = d.c.y - d.offset.y;   // ghost centre
-
-    if (!d.away || !tabBox) {
-      // inside the sidebar Zen moves the tab itself; let the goo relax
-      d.paths.set("", "");
-      d.ghost.style.opacity = "0";
-      d.skull.style.opacity = "0";
-      if (d.bg) {
-        d.bg.style.scale = "";
-      }
-      if (d.snapped) {
-        d.snapped = false;           // back home: it can stretch again
-        pulse(d.tab, "ooz-plop");
-      }
+    if (!tabBox) {
       d.raf = requestAnimationFrame(frame);
       return;
     }
+    d.away = !!side && (d.p.x > side.right - 4 || d.p.x < side.left + 4);
+    // where the blob wants to be: inside the sidebar it slides along the tab column
+    // (held by its grab point); outside it's pulled by its near end
+    const homeCx = tabBox.left + tabBox.width / 2;
+    let tx, ty = d.c.y - d.offset.y;
+    if (d.away) {
+      const toRight = d.p.x > side.left + side.width / 2;
+      tx = d.c.x - (toRight ? 24 - d.w / 2 : d.w / 2 - 24);
+    } else {
+      tx = homeCx + (d.c.x - d.offset.x - homeCx) * 0.3;
+    }
+    d.g = d.g || { x: homeCx, y: tabBox.top + tabBox.height / 2 };
+    d.g.x += (tx - d.g.x) * k;
+    d.g.y += (ty - d.g.y) * k;
+    const gx = d.g.x, gy = d.g.y;
+    d.ox = d.c.x - gx;
 
-    d.ghost.style.opacity = "1";
+    // show the blob once it has really left home
+    const moved = Math.hypot(d.p.x - d.start.x, d.p.y - d.start.y) > 4;
+    d.ghost.style.opacity = moved ? "1" : "0";
     d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
+    if (moved && !d.hollow) {
+      d.hollow = true;
+      d.tab.setAttribute("ooz-hollow", "true");
+    }
+    const ghostBox = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
+
+    // squeezing through the other tabs: the one it's over squishes, goo joins it to its neighbours
+    squeeze(d, ghostBox);
+
     if (d.snapped) {
       d.paths.set("", "");
       d.skull.style.opacity = "0";
       d.raf = requestAnimationFrame(frame);
       return;
     }
-
     const a = anchorOn(tabBox, { x: gx, y: gy });
-    const ghostBox = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
     const b = anchorOn(ghostBox, a);
     const dist = Math.hypot(b.x - a.x, b.y - a.y);
     const t = Math.min(1, dist / d.S.snap);
     d.t = t;
     d.len = dist;
+    if (dist < 2) {
+      d.paths.set("", "");
+      d.skull.style.opacity = "0";
+      d.raf = requestAnimationFrame(frame);
+      return;
+    }
     const wa = d.h * (0.72 - 0.4 * t), wb = d.h * (0.7 - 0.36 * t), h = 1 + 8 * Math.pow(1 - t, 1.5);
     const neck = neckPath(a.x, a.y, b.x, b.y, wa, wb, h);
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
@@ -318,7 +331,7 @@
     }
     if (d.bg) {
       const ux = (b.x - a.x) / (dist || 1), uy = (b.y - a.y) / (dist || 1);
-      d.bg.style.transformOrigin = `${ux < 0 ? 0 : 100}% 50%`;
+      d.bg.style.transformOrigin = Math.abs(uy) > Math.abs(ux) ? `50% ${uy < 0 ? 0 : 100}%` : `${ux < 0 ? 0 : 100}% 50%`;
       d.bg.style.scale = `${(1 + 0.07 * t * Math.abs(ux) - 0.03 * t * Math.abs(uy)).toFixed(3)} ${(1 + 0.12 * t * Math.abs(uy) - 0.06 * t * Math.abs(ux)).toFixed(3)}`;
     }
     d.mid = { x: mx, y: my };
@@ -328,9 +341,73 @@
     d.raf = requestAnimationFrame(frame);
   }
 
+  // the other tabs the blob passes: read every rect first, then write styles
+  function squeeze(d, gb) {
+    if (!d.others || d.frameN++ % 20 === 0) {
+      d.others = [...document.querySelectorAll("#tabbrowser-tabs .tabbrowser-tab:not([zen-essential])")]
+        .filter((t) => t !== d.tab && t.isConnected)
+        .map((t) => ({ t, bg: t.querySelector(".tab-background"), r: t.getBoundingClientRect() }))
+        .filter((o) => o.r.height > 0);
+    }
+    const gh = gb.bottom - gb.top;
+    let above = null, below = null;
+    for (const o of d.others) {
+      const r = o.r;
+      const inColumn = gb.right > r.left + 10 && gb.left < r.right - 10;
+      const over = inColumn ? Math.max(0, Math.min(gb.bottom, r.bottom) - Math.max(gb.top, r.top)) / Math.min(gh, r.height) : 0;
+      if (o.bg) {
+        // squish to make room as the blob pushes through
+        const s = over > 0 ? `${(1 - 0.05 * over).toFixed(3)} ${(1 - 0.22 * over).toFixed(3)}` : "";
+        if (o.bg.style.scale !== s) {
+          o.bg.style.scale = s;
+          o.squished = !!s;
+        }
+      }
+      if (!inColumn) {
+        continue;
+      }
+      const gapUp = gb.top - r.bottom, gapDown = r.top - gb.bottom;
+      if (gapUp > -gh * 0.55 && gapUp < 22 && (!above || r.bottom > above.r.bottom)) {
+        above = o;
+      }
+      if (gapDown > -gh * 0.55 && gapDown < 22 && (!below || r.top < below.r.top)) {
+        below = o;
+      }
+    }
+    // goo contacts: two short strands from the blob to each tab it's squeezing between
+    const strands = [];
+    const cx = (gb.left + gb.right) / 2, span = Math.min(gb.right - gb.left, 180) * 0.28;
+    for (const [o, up] of [[above, true], [below, false]]) {
+      if (!o || d.away) {
+        continue;
+      }
+      const gap = up ? gb.top - o.r.bottom : o.r.top - gb.bottom;
+      const w = Math.max(6, 22 - Math.max(0, gap) * 0.8), hh = Math.max(1.2, 6 - Math.max(0, gap) * 0.25);
+      for (const sx of [cx - span, cx + span * 0.8]) {
+        const y1 = up ? gb.top + 3 : gb.bottom - 3, y2 = up ? o.r.bottom - 3 : o.r.top + 3;
+        strands.push(neckPath(sx, y1, sx, y2, w, w, hh));
+      }
+    }
+    if (!d.contact) {
+      d.contact = makePaths(d.fill, d.rim);
+    }
+    d.contact.set(strands.join(""), "");
+  }
+
+  function releaseOthers(d) {
+    for (const o of d.others || []) {
+      if (o.bg && o.bg.style.scale) {
+        o.bg.style.scale = "";
+      }
+    }
+    d.contact?.remove();
+    d.tab.removeAttribute("ooz-hollow");
+  }
+
   function snap() {
     const d = drag;
     d.snapped = true;
+    d.tab.removeAttribute("ooz-hollow");
     if (d.bg) {
       d.bg.style.scale = "";
     }
@@ -354,6 +431,7 @@
     if (d.bg) {
       d.bg.style.scale = "";
     }
+    releaseOthers(d);
     const finish = () => {
       d.paths.remove();
       d.ghost.remove();
@@ -370,7 +448,7 @@
         pulse(d.tab.previousElementSibling, "ooz-restick", 450);
       }
     }, 30);
-    if (!d.away || d.snapped || !d.tab.isConnected) {
+    if (!d.away || d.snapped || !d.tab.isConnected || d.len < 2) {
       d.ghost.style.opacity = "0";
       setTimeout(finish, 200);
       return;
@@ -378,6 +456,7 @@
     // let go while still stuck: the strand pulls the blob back and shrinks away
     const start = performance.now();
     const from = { x: d.c.x, y: d.c.y };
+    d.ox = d.ox ?? d.offset.x;
     const box = d.tab.getBoundingClientRect();
     const ox = d.ox ?? d.offset.x;
     const home = { x: box.left + box.width / 2 + ox, y: box.top + box.height / 2 + d.offset.y };
