@@ -192,7 +192,7 @@
     return o;
   }
 
-  function droplet(x, y, color, fall, withSkull) {
+  function droplet(x, y, color, fall, withSkull, quick) {
     ensureLayer();
     const d = document.createElementNS(HTML, "div");
     d.className = "ooz-drop" + (withSkull ? " big" : "");
@@ -217,8 +217,8 @@
     d.appendChild(inner);
     layer.appendChild(d);
     // short-lived: it lands, then fades, so it never sits over text for long
-    setTimeout(() => (d.style.opacity = "0"), 1100);
-    setTimeout(() => d.remove(), 1700);
+    setTimeout(() => (d.style.opacity = "0"), quick ? 380 : 1100);
+    setTimeout(() => d.remove(), quick ? 950 : 1700);
   }
 
   function pulse(el, attr, ms = 600) {
@@ -275,7 +275,10 @@
       ghost.setAttribute("selected", "true");
     }
     ghost.style.setProperty("--ooz-ghost-fill", fill);
-    ghost.style.width = `${Math.min(260, box.width)}px`;
+    // split-view tabs are half width: give the blob a normal tab's width
+    const listW = document.getElementById("tabbrowser-tabs")?.getBoundingClientRect().width || box.width;
+    const blobW = Math.min(260, Math.max(box.width, listW - 8));
+    ghost.style.width = `${blobW}px`;
     ghost.style.height = `${box.height}px`;
     ghost.style.opacity = "0";
     const icon = tab.querySelector(".tab-icon-image")?.src || tab.getAttribute("image");
@@ -299,8 +302,9 @@
       drop: cssVar("--ooz-drop", "#CCFF00"),
       paths: null,
       p, c: { ...p },
-      offset: { x: p.x - (box.left + Math.min(260, box.width) / 2), y: p.y - (box.top + box.height / 2) },
-      w: Math.min(260, box.width), h: box.height,
+      offset: { x: p.x - (box.left + box.width / 2), y: p.y - (box.top + box.height / 2) },
+      w: blobW, h: box.height,
+      home: { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height },
       snapped: false, away: false, done: false, t: 0, len: 0, start: { ...p }, frameN: 0,
       skullRot: Math.random() * 50 - 25,
       lastOver: Date.now(), last: performance.now(), raf: 0,
@@ -341,7 +345,7 @@
     d.c.x += (d.p.x - d.c.x) * k;
     d.c.y += (d.p.y - d.c.y) * k;
 
-    const tabBox = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
+    const tabBox = d.home;                                // Zen may lift the tab out of the list (split view)
     const side = sidebarBox();
     if (!tabBox) {
       d.raf = requestAnimationFrame(frame);
@@ -486,7 +490,9 @@
     }
     d.paths.set("", "");
     d.skull.style.opacity = "0";
-    droplet(d.mid.x, d.mid.y, d.drop, 26 + Math.random() * 30, d.ride && d.len > 30);
+    const side = sidebarBox();
+    const overPage = !!side && (d.mid.x > side.right || d.mid.x < side.left);   // never leave goo sitting on the page
+    droplet(d.mid.x, d.mid.y, d.drop, 26 + Math.random() * 30, d.ride && d.len > 30, overPage);
     pulse(d.tab, "ooz-recoil");
     d.ghost.classList.remove("ooz-recoil");
     void d.ghost.offsetWidth;
@@ -533,21 +539,34 @@
       fade();
       return;
     }
-    // give Zen a moment to put the tab in its new place, then pull the blob back into it
+    // hold the blob where it was dropped until Zen has moved the tab, then pull it into the new place
     const g0 = { x: d.g.x, y: d.g.y };
-    setTimeout(() => {
-      const box = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
-      if (!box || !box.width) {
-        fade();                          // torn off into a new window
-        return;
+    const home = d.home;
+    const waitStart = performance.now();
+    d.paths.set("", "");
+    d.tab.setAttribute("ooz-hollow", "true");
+    const sizeOf = () => (d.tab.isConnected ? d.tab.getBoundingClientRect() : null);
+    const wait = () => {
+      const r = sizeOf();
+      const moved = r && r.width && (Math.abs(r.top - home.top) > 2 || Math.abs(r.left - home.left) > 2);
+      if (moved || performance.now() - waitStart > 260) {
+        if (!r || !r.width) {
+          fade();                        // torn off into a new window, or gone
+          return;
+        }
+        retract(r);
+      } else {
+        requestAnimationFrame(wait);
       }
-      d.paths.set("", "");
-      d.tab.setAttribute("ooz-hollow", "true");          // it fills back up as the goo returns
+    };
+    const retract = (first) => {
+      let tb = first;
       const start = performance.now(), dur = 380;
       const step = (now) => {
-        // follow the tab live: Zen may only move it into its new place a moment after the drop
-        const live = d.tab.isConnected ? d.tab.getBoundingClientRect() : box;
-        const tb = live.width ? live : box;
+        const live = sizeOf();
+        if (live && live.width) {
+          tb = live;                     // keep following it if Zen is still settling it
+        }
         const tx = tb.left + tb.width / 2, ty = tb.top + tb.height / 2;
         const k = Math.min(1, (now - start) / dur);
         const e = 1 - Math.pow(1 - k, 3);
@@ -567,7 +586,8 @@
         }
       };
       requestAnimationFrame(step);
-    }, 40);
+    };
+    requestAnimationFrame(wait);
   }
 
   window.addEventListener("dragstart", (e) => {
