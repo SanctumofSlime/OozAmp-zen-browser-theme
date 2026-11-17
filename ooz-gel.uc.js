@@ -132,9 +132,10 @@
     const dx = (toward.x - cx) / (w / 2), dy = (toward.y - cy) / (hgt / 2);
     if (Math.abs(dy) >= Math.abs(dx)) {
       const pad = Math.min(w / 2, 34);
-      return { x: Math.min(Math.max(toward.x, r.left + pad), r.right - pad), y: dy < 0 ? r.top + 1 : r.bottom - 1, inset: 1, max: 40 };
+      return { x: Math.min(Math.max(toward.x, r.left + pad), r.right - pad), y: dy < 0 ? r.top + 1 : r.bottom - 1, inset: 1, cap: 40 };
     }
-    return { x: dx < 0 ? r.left + 11 : r.right - 11, y: cy, inset: 11, max: Math.max(6, hgt - 24) };
+    const inset = Math.min(hgt / 2, 18);
+    return { x: dx < 0 ? r.left + inset : r.right - inset, y: cy, inset, cap: hgt / 2 - 3 };
   }
   const rrect = (r, rad) => {
     const x = r.left, y = r.top, w = r.right - r.left, h = r.bottom - r.top, k = Math.min(rad, w / 2, h / 2);
@@ -158,8 +159,9 @@
     const forwards = (b.x - a.x) * (gx - tcx) + (b.y - a.y) * (gy - tcy) > 0;
     const dist = gapX <= 0 && gapY <= 0 || !forwards ? 0 : Math.max(0, Math.hypot(b.x - a.x, b.y - a.y) - a.inset - b.inset);
     const t = Math.min(1, dist / d.S.snap);
-    const wa = Math.min(a.max, d.h * (0.62 - 0.34 * t)), wb = Math.min(b.max, d.h * (0.6 - 0.3 * t));
     const fl = 9 * (1 - 0.35 * t), h = 1 + 7 * Math.pow(1 - t, 1.5);
+    const wa = Math.max(4, Math.min(2 * (a.cap - fl), d.h * (0.62 - 0.34 * t)));
+    const wb = Math.max(4, Math.min(2 * (b.cap - fl), d.h * (0.6 - 0.3 * t)));
     const link = gooLink(a, b, wa, wb, h, fl, fl);
     return { a, b, dist, t, link, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
   }
@@ -181,6 +183,7 @@
     o.neckO.setAttribute("fill", "none");
     o.neckO.setAttribute("stroke-width", "2");
     o.neckO.setAttribute("clip-path", "url(#ooz-rimclip)");
+    o.neck.setAttribute("clip-path", "url(#ooz-rimclip)");   // the strand emerges from the tab edge
     o.set = (neck, bead, rim) => {
       o.neckO.setAttribute("d", rim ?? neck); o.neck.setAttribute("d", neck);
       o.beadO.setAttribute("d", bead); o.bead.setAttribute("d", bead);
@@ -502,6 +505,7 @@
       d.bg.style.scale = "";
     }
     releaseOthers(d);
+    d.skull.style.opacity = "0";
     const finish = () => {
       d.paths.remove();
       d.ghost.remove();
@@ -510,45 +514,57 @@
         drag = null;
       }
     };
-    // restick the necks round the tab once Zen has put it down
-    setTimeout(() => {
+    // the tab plops into place and its neighbours stick to it again
+    const settle = () => {
+      d.tab.removeAttribute("ooz-hollow");
       if (d.tab.isConnected) {
         pulse(d.tab, "ooz-plop");
         pulse(d.tab, "ooz-restick", 450);
         pulse(d.tab.previousElementSibling, "ooz-restick", 450);
       }
-    }, 30);
-    if (!d.away || d.snapped || !d.tab.isConnected || d.len < 2) {
+    };
+    const fade = () => {
+      d.paths.set("", "");
       d.ghost.style.opacity = "0";
-      setTimeout(finish, 200);
+      setTimeout(() => { settle(); finish(); }, 160);
+    };
+    const shown = d.g && d.ghost.style.opacity === "1";
+    if (!shown || reducedMotion()) {
+      fade();
       return;
     }
-    // let go while still stuck: the strand pulls the blob back and shrinks away
-    const start = performance.now();
-    const from = { x: d.c.x, y: d.c.y };
-    d.ox = d.ox ?? d.offset.x;
-    const box = d.tab.getBoundingClientRect();
-    const ox = d.ox ?? d.offset.x;
-    const home = { x: box.left + box.width / 2 + ox, y: box.top + box.height / 2 + d.offset.y };
-    const step = (now) => {
-      const k = Math.min(1, (now - start) / 220), e = 1 - Math.pow(1 - k, 3);
-      d.c.x = from.x + (home.x - from.x) * e;
-      d.c.y = from.y + (home.y - from.y) * e;
-      const gx = d.c.x - ox, gy = d.c.y - d.offset.y;
-      d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px) scale(${(1 - 0.5 * e).toFixed(2)})`;
-      d.ghost.style.opacity = String(1 - e);
-      const g = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
-      const S = strandFor(d, box, g, gx, gy);
-      setRimClip(box, g);
-      d.paths.set(S.dist > 1 ? S.link.fill : "", "", S.dist > 1 ? S.link.rim : "");
-      d.skull.style.opacity = "0";
-      if (k < 1) {
-        requestAnimationFrame(step);
-      } else {
-        finish();
+    // give Zen a moment to put the tab in its new place, then pull the blob back into it
+    const g0 = { x: d.g.x, y: d.g.y };
+    setTimeout(() => {
+      const box = d.tab.isConnected ? d.tab.getBoundingClientRect() : null;
+      if (!box || !box.width) {
+        fade();                          // torn off into a new window
+        return;
       }
-    };
-    requestAnimationFrame(step);
+      d.paths.set("", "");
+      d.tab.setAttribute("ooz-hollow", "true");          // it fills back up as the goo returns
+      const tx = box.left + box.width / 2, ty = box.top + box.height / 2;
+      const start = performance.now(), dur = 340;
+      const step = (now) => {
+        const k = Math.min(1, (now - start) / dur);
+        const e = 1 - Math.pow(1 - k, 3);
+        const gx = g0.x + (tx - g0.x) * e, gy = g0.y + (ty - g0.y) * e;
+        const s = 1 - 0.6 * e;                           // the blob shrinks as it's sucked in
+        d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px) scale(${s.toFixed(3)}, ${(s * (1 + 0.25 * Math.sin(k * Math.PI))).toFixed(3)})`;
+        d.ghost.style.opacity = String(Math.min(1, 1.7 * (1 - k)).toFixed(2));
+        const g = { left: gx - (d.w * s) / 2, right: gx + (d.w * s) / 2, top: gy - (d.h * s) / 2, bottom: gy + (d.h * s) / 2 };
+        const S = strandFor(d, box, g, gx, gy);
+        setRimClip(box, g);
+        d.paths.set(S.dist > 1 ? S.link.fill : "", "", S.dist > 1 ? S.link.rim : "");
+        if (k < 1) {
+          requestAnimationFrame(step);
+        } else {
+          settle();
+          finish();
+        }
+      };
+      requestAnimationFrame(step);
+    }, 40);
   }
 
   window.addEventListener("dragstart", (e) => {
