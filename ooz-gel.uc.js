@@ -56,6 +56,14 @@
     layer.setAttribute("style", "position:fixed;inset:0;pointer-events:none;z-index:2147483000;overflow:hidden;");
     svg = document.createElementNS(SVG, "svg");
     svg.setAttribute("style", "position:fixed;inset:0;width:100vw;height:100vh;overflow:visible;pointer-events:none;");
+    const defs = document.createElementNS(SVG, "defs");
+    const clip = document.createElementNS(SVG, "clipPath");
+    clip.id = "ooz-rimclip";
+    const cp = document.createElementNS(SVG, "path");
+    cp.setAttribute("clip-rule", "evenodd");
+    clip.appendChild(cp);
+    defs.appendChild(clip);
+    svg.appendChild(defs);
     layer.appendChild(svg);
     document.documentElement.appendChild(layer);
   }
@@ -93,6 +101,68 @@
     return `M${f1(ax + nx * wa / 2)},${f1(ay + ny * wa / 2)}Q${f1(mx + nx * k)},${f1(my + ny * k)} ${f1(bx + nx * wb / 2)},${f1(by + ny * wb / 2)}` +
       `L${f1(bx - nx * wb / 2)},${f1(by - ny * wb / 2)}Q${f1(mx - nx * k)},${f1(my - ny * k)} ${f1(ax - nx * wa / 2)},${f1(ay - ny * wa / 2)}Z`;
   }
+  const pt = (p) => `${f1(p.x)},${f1(p.y)}`;
+  // one side of a strand from p to q: leaves p's edge tangentially (flare), pinches, flares into q
+  function strandSide(p, q, wp, wq, fp, fq, h) {
+    const dx = q.x - p.x, dy = q.y - p.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+    const P = (o, s, t) => ({ x: o.x + nx * s + ux * t, y: o.y + ny * s + uy * t });
+    fp = Math.min(fp, L * 0.3); fq = Math.min(fq, L * 0.3);
+    const M = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+    const p0 = P(p, wp / 2 + fp, 0), p1 = P(p, wp / 2, fp * 1.2), mid = P(M, h, 0), q1 = P(q, wq / 2, -fq * 1.2), q0 = P(q, wq / 2 + fq, 0);
+    return {
+      start: p0, end: q0,
+      d: `C${pt(P(p, wp / 2 + fp * 0.3, 0))} ${pt(P(p, wp / 2, fp * 0.55))} ${pt(p1)}` +
+         `C${pt(P(p1, 0, L * 0.18))} ${pt(P(mid, 0, -L * 0.16))} ${pt(mid)}` +
+         `C${pt(P(mid, 0, L * 0.16))} ${pt(P(q1, 0, -L * 0.18))} ${pt(q1)}` +
+         `C${pt(P(q, wq / 2, -fq * 0.55))} ${pt(P(q, wq / 2 + fq * 0.3, 0))} ${pt(q0)}`,
+      inside: (o, s, t) => P(o, s, t),
+    };
+  }
+  function gooLink(a, b, wa, wb, h, fa, fb) {
+    const s1 = strandSide(a, b, wa, wb, fa, fb, h);     // one side, a -> b
+    const s2 = strandSide(b, a, wb, wa, fb, fa, h);     // other side, b -> a
+    const qa = s1.inside(b, 0, 2), pa = s1.inside(a, 0, -2);
+    const fill = `M${pt(s1.start)}${s1.d}L${pt(qa)}L${pt(s2.start)}${s2.d}L${pt(pa)}Z`;
+    const rim = `M${pt(s1.start)}${s1.d}M${pt(s2.start)}${s2.d}`;
+    return { fill, rim };
+  }
+  // where a strand meets a blob-shaped box: flat top/bottom edges, or tucked inside the rounded ends
+  function edgeAnchor(r, toward) {
+    const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2, w = r.right - r.left, hgt = r.bottom - r.top;
+    const dx = (toward.x - cx) / (w / 2), dy = (toward.y - cy) / (hgt / 2);
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      const pad = Math.min(w / 2, 34);
+      return { x: Math.min(Math.max(toward.x, r.left + pad), r.right - pad), y: dy < 0 ? r.top + 1 : r.bottom - 1, inset: 1, max: 40 };
+    }
+    return { x: dx < 0 ? r.left + 11 : r.right - 11, y: cy, inset: 11, max: Math.max(6, hgt - 24) };
+  }
+  const rrect = (r, rad) => {
+    const x = r.left, y = r.top, w = r.right - r.left, h = r.bottom - r.top, k = Math.min(rad, w / 2, h / 2);
+    return `M${f1(x + k)},${f1(y)}H${f1(x + w - k)}A${k},${k} 0 0 1 ${f1(x + w)},${f1(y + k)}V${f1(y + h - k)}A${k},${k} 0 0 1 ${f1(x + w - k)},${f1(y + h)}` +
+      `H${f1(x + k)}A${k},${k} 0 0 1 ${f1(x)},${f1(y + h - k)}V${f1(y + k)}A${k},${k} 0 0 1 ${f1(x + k)},${f1(y)}Z`;
+  };
+  function setRimClip(...boxes) {
+    const cp = svg?.querySelector("#ooz-rimclip path");
+    if (cp) {
+      cp.setAttribute("d", `M-9999,-9999H9999V9999H-9999Z${boxes.map((b) => rrect(b, 16)).join("")}`);
+    }
+  }
+  // the whole strand between home tab and blob
+  function strandFor(d, tabBox, ghostBox, gx, gy) {
+    const a = edgeAnchor(tabBox, { x: gx, y: gy });
+    const b = edgeAnchor(ghostBox, a);
+    // no strand while the blob still overlaps its tab, and only measure forwards
+    const gapX = Math.max(ghostBox.left - tabBox.right, tabBox.left - ghostBox.right);
+    const gapY = Math.max(ghostBox.top - tabBox.bottom, tabBox.top - ghostBox.bottom);
+    const tcx = (tabBox.left + tabBox.right) / 2, tcy = (tabBox.top + tabBox.bottom) / 2;
+    const forwards = (b.x - a.x) * (gx - tcx) + (b.y - a.y) * (gy - tcy) > 0;
+    const dist = gapX <= 0 && gapY <= 0 || !forwards ? 0 : Math.max(0, Math.hypot(b.x - a.x, b.y - a.y) - a.inset - b.inset);
+    const t = Math.min(1, dist / d.S.snap);
+    const wa = Math.min(a.max, d.h * (0.62 - 0.34 * t)), wb = Math.min(b.max, d.h * (0.6 - 0.3 * t));
+    const fl = 9 * (1 - 0.35 * t), h = 1 + 7 * Math.pow(1 - t, 1.5);
+    const link = gooLink(a, b, wa, wb, h, fl, fl);
+    return { a, b, dist, t, link, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+  }
   const circle = (x, y, r) => `M${f1(x - r)},${f1(y)}a${f1(r)},${f1(r)} 0 1 0 ${f1(2 * r)},0a${f1(r)},${f1(r)} 0 1 0 ${f1(-2 * r)},0Z`;
   function makePaths(fill, rim) {
     const mk = (stroke) => {
@@ -108,8 +178,11 @@
     };
     // outlines underneath, fills on top: one merged outline around neck + bead
     const o = { neckO: mk(true), beadO: mk(true), neck: mk(false), bead: mk(false) };
-    o.set = (neck, bead) => {
-      o.neckO.setAttribute("d", neck); o.neck.setAttribute("d", neck);
+    o.neckO.setAttribute("fill", "none");
+    o.neckO.setAttribute("stroke-width", "2");
+    o.neckO.setAttribute("clip-path", "url(#ooz-rimclip)");
+    o.set = (neck, bead, rim) => {
+      o.neckO.setAttribute("d", rim ?? neck); o.neck.setAttribute("d", neck);
       o.beadO.setAttribute("d", bead); o.bead.setAttribute("d", bead);
     };
     o.remove = () => [o.neckO, o.beadO, o.neck, o.bead].forEach((p) => p.remove());
@@ -307,10 +380,8 @@
       d.raf = requestAnimationFrame(frame);
       return;
     }
-    const a = anchorOn(tabBox, { x: gx, y: gy });
-    const b = anchorOn(ghostBox, a);
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    const t = Math.min(1, dist / d.S.snap);
+    const S = strandFor(d, tabBox, ghostBox, gx, gy);
+    const a = S.a, b = S.b, dist = S.dist, t = S.t;
     d.t = t;
     d.len = dist;
     if (dist < 2) {
@@ -319,11 +390,10 @@
       d.raf = requestAnimationFrame(frame);
       return;
     }
-    const wa = d.h * (0.72 - 0.4 * t), wb = d.h * (0.7 - 0.36 * t), h = 1 + 8 * Math.pow(1 - t, 1.5);
-    const neck = neckPath(a.x, a.y, b.x, b.y, wa, wb, h);
-    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const mx = S.mid.x, my = S.mid.y;
     const rb = d.ride ? Math.max(0, Math.min(8.5, dist * 0.24)) : 0;
-    d.paths.set(neck, rb > 0.5 ? circle(mx, my, rb) : "");
+    setRimClip(tabBox, ghostBox);
+    d.paths.set(S.link.fill, rb > 0.5 ? circle(mx, my, rb) : "", S.link.rim);
     if (d.ride) {
       const sz = rb / 8.5;
       d.skull.style.opacity = String(Math.max(0, Math.min(1, (dist - 16) / 22)) * 0.95);
@@ -385,13 +455,13 @@
       const w = Math.max(6, 22 - Math.max(0, gap) * 0.8), hh = Math.max(1.2, 6 - Math.max(0, gap) * 0.25);
       for (const sx of [cx - span, cx + span * 0.8]) {
         const y1 = up ? gb.top + 3 : gb.bottom - 3, y2 = up ? o.r.bottom - 3 : o.r.top + 3;
-        strands.push(neckPath(sx, y1, sx, y2, w, w, hh));
+        strands.push(gooLink({ x: sx, y: y1 }, { x: sx, y: y2 }, w * 0.7, w * 0.7, hh, 5, 5).fill);
       }
     }
     if (!d.contact) {
       d.contact = makePaths(d.fill, d.rim);
     }
-    d.contact.set(strands.join(""), "");
+    d.contact.set(strands.join(""), "", "");
   }
 
   function releaseOthers(d) {
@@ -467,11 +537,10 @@
       const gx = d.c.x - ox, gy = d.c.y - d.offset.y;
       d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px) scale(${(1 - 0.5 * e).toFixed(2)})`;
       d.ghost.style.opacity = String(1 - e);
-      const a = anchorOn(box, { x: gx, y: gy });
       const g = { left: gx - d.w / 2, right: gx + d.w / 2, top: gy - d.h / 2, bottom: gy + d.h / 2 };
-      const b = anchorOn(g, a);
-      const t = d.t * (1 - e);
-      d.paths.set(neckPath(a.x, a.y, b.x, b.y, d.h * (0.8 - 0.32 * t), d.h * (0.8 - 0.3 * t), 1.2 + 11 * Math.pow(1 - t, 0.85)), "");
+      const S = strandFor(d, box, g, gx, gy);
+      setRimClip(box, g);
+      d.paths.set(S.dist > 1 ? S.link.fill : "", "", S.dist > 1 ? S.link.rim : "");
       d.skull.style.opacity = "0";
       if (k < 1) {
         requestAnimationFrame(step);
