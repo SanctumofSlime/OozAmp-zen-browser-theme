@@ -355,12 +355,18 @@
     // where the blob wants to be: inside the sidebar it slides along the tab column
     // (held by its grab point); outside it's pulled by its near end
     const homeCx = tabBox.left + tabBox.width / 2;
+    // blend smoothly between the two over the last stretch of the column, so there's no jump at the edge
     let tx, ty = d.c.y - d.offset.y;
-    if (d.away) {
+    const tIn = homeCx + (d.c.x - d.offset.x - homeCx) * 0.4;
+    if (side) {
       const toRight = d.p.x > side.left + side.width / 2;
-      tx = d.c.x - (toRight ? 24 - d.w / 2 : d.w / 2 - 24);
+      const tOut = d.c.x - (toRight ? 24 - d.w / 2 : d.w / 2 - 24);
+      const out = toRight ? d.c.x - side.right : side.left - d.c.x;     // >0 past the edge
+      const u = Math.min(1, Math.max(0, (out + 130) / 210));
+      const bl = u * u * (3 - 2 * u);
+      tx = tIn + (tOut - tIn) * bl;
     } else {
-      tx = homeCx + (d.c.x - d.offset.x - homeCx) * 0.3;
+      tx = tIn;
     }
     d.g = d.g || { x: homeCx, y: tabBox.top + tabBox.height / 2 };
     d.g.x += (tx - d.g.x) * k;
@@ -370,8 +376,19 @@
 
     // show the blob once it has really left home
     const moved = Math.hypot(d.p.x - d.start.x, d.p.y - d.start.y) > 4;
-    d.ghost.style.opacity = moved ? "1" : "0";
-    d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px)`;
+    // Zen is offering to merge into a split view: shrink the blob out of the way so its preview shows
+    if (d.frameN % 4 === 0 || d.mergeHost) {
+      const fake = document.querySelector("zen-split-fake-tab");
+      const host = fake?.closest(".tabbrowser-tab") || null;
+      if (host !== d.mergeHost) {
+        d.mergeHost?.removeAttribute("ooz-merge");
+        host?.setAttribute("ooz-merge", "true");
+        d.mergeHost = host;
+      }
+    }
+    const ms = d.mergeHost ? 0.5 : 1;
+    d.ghost.style.opacity = moved ? (d.mergeHost ? "0.45" : "1") : "0";
+    d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px) scale(${ms})`;
     if (moved && !d.hollow) {
       d.hollow = true;
       d.tab.setAttribute("ooz-hollow", "true");
@@ -380,8 +397,12 @@
 
     // squeezing through the other tabs: the one it's over squishes, goo joins it to its neighbours
     squeeze(d, ghostBox);
+    const hostBg = d.mergeHost?.querySelector(".tab-background");
+    if (hostBg) {
+      hostBg.style.scale = "";
+    }
 
-    if (d.snapped) {
+    if (d.snapped || d.mergeHost) {
       d.paths.set("", "");
       d.skull.style.opacity = "0";
       d.raf = requestAnimationFrame(frame);
@@ -511,6 +532,7 @@
       d.bg.style.scale = "";
     }
     releaseOthers(d);
+    d.mergeHost?.removeAttribute("ooz-merge");
     d.skull.style.opacity = "0";
     const finish = () => {
       d.paths.remove();

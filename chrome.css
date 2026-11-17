@@ -229,6 +229,7 @@
 /* while its blob is being dragged, the tab's home slot looks hollowed out */
 .tabbrowser-tab[ooz-hollow] .tab-background { opacity: .78; transition: opacity .15s ease; }
 .tabbrowser-tab[ooz-hollow] .tab-content { opacity: .5; }
+.tabbrowser-tab[ooz-merge] .tab-background { box-shadow: inset 0 0 0 2px #eeff2e, 0 0 12px 2px rgba(230,255,0,.55) !important; }
 .tabbrowser-tab .tab-background { transition: scale .12s ease-out; }
 .tabbrowser-tab[ooz-plop] .tab-background { animation: ooz-plop .5s cubic-bezier(.3, 1.5, .5, 1); }
 #tabbrowser-tabs .tabbrowser-tab[fadein]:not([zen-essential]) .tab-background { animation: ooz-blorp .5s cubic-bezier(.3, 1.6, .5, 1) both; }
