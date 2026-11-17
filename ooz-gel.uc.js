@@ -543,9 +543,12 @@
       }
       d.paths.set("", "");
       d.tab.setAttribute("ooz-hollow", "true");          // it fills back up as the goo returns
-      const tx = box.left + box.width / 2, ty = box.top + box.height / 2;
-      const start = performance.now(), dur = 340;
+      const start = performance.now(), dur = 380;
       const step = (now) => {
+        // follow the tab live: Zen may only move it into its new place a moment after the drop
+        const live = d.tab.isConnected ? d.tab.getBoundingClientRect() : box;
+        const tb = live.width ? live : box;
+        const tx = tb.left + tb.width / 2, ty = tb.top + tb.height / 2;
         const k = Math.min(1, (now - start) / dur);
         const e = 1 - Math.pow(1 - k, 3);
         const gx = g0.x + (tx - g0.x) * e, gy = g0.y + (ty - g0.y) * e;
@@ -553,8 +556,8 @@
         d.ghost.style.transform = `translate(${f1(gx - d.w / 2)}px,${f1(gy - d.h / 2)}px) scale(${s.toFixed(3)}, ${(s * (1 + 0.25 * Math.sin(k * Math.PI))).toFixed(3)})`;
         d.ghost.style.opacity = String(Math.min(1, 1.7 * (1 - k)).toFixed(2));
         const g = { left: gx - (d.w * s) / 2, right: gx + (d.w * s) / 2, top: gy - (d.h * s) / 2, bottom: gy + (d.h * s) / 2 };
-        const S = strandFor(d, box, g, gx, gy);
-        setRimClip(box, g);
+        const S = strandFor(d, tb, g, gx, gy);
+        setRimClip(tb, g);
         d.paths.set(S.dist > 1 ? S.link.fill : "", "", S.dist > 1 ? S.link.rim : "");
         if (k < 1) {
           requestAnimationFrame(step);
